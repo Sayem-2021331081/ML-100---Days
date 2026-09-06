@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Voting Classifier Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF1F6;
+    --panel:#FFFFFF;
+    --ink:#171C26;
+    --ink-soft:#5B6472;
+    --line:#D7DCE5;
+    --classA:#2E5EAA;   /* signal blue   */
+    --classA-fill:#9CB6E0;
+    --classB:#D2652E;   /* signal amber  */
+    --classB-fill:#EFB78C;
+    --good:#2E8B57;
+    --accent:#171C26;
+    --chip-bg:#171C26;
+    --chip-ink:#F6F5F1;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:'Space Grotesk',sans-serif;}
+  body{display:flex;min-height:100vh;}
+
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* ---------- Sidebar ---------- */
+  #sidebar{
+    width:300px;flex:0 0 300px;background:var(--panel);
+    border-right:1px solid var(--line);padding:28px 24px 24px;
+    display:flex;flex-direction:column;gap:22px;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px;margin-bottom:4px;}
+  .brand h1{font-size:20px;font-weight:700;margin:0;letter-spacing:-0.01em;}
+  .brand p{margin:0;font-size:12.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+
+  .field label{
+    display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);
+    margin-bottom:8px;font-family:'IBM Plex Mono',monospace;text-transform:lowercase;
+  }
+  select{
+    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:6px;
+    background:var(--panel);font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);
+    appearance:none;-webkit-appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0L5 6L10 0Z' fill='%235B6472'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;
+    cursor:pointer;
+  }
+  select:focus, .chip:focus-visible, button:focus-visible{outline:2px solid var(--classA);outline-offset:2px;}
+
+  .chips{display:flex;flex-direction:column;gap:8px;}
+  .chip{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:9px 12px;border-radius:6px;border:1px solid var(--line);
+    background:var(--panel);cursor:pointer;font-size:13.5px;user-select:none;
+    transition:background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .chip .dot{width:8px;height:8px;border-radius:50%;background:var(--line);margin-right:9px;flex:0 0 auto;transition:background .12s ease;}
+  .chip .name{flex:1;}
+  .chip .tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);}
+  .chip.selected{background:var(--chip-bg);border-color:var(--chip-bg);color:var(--chip-ink);}
+  .chip.selected .tag{color:#B9BFC9;}
+  .chip.selected .dot{background:var(--good);}
+  .chip.disabled{opacity:.4;cursor:not-allowed;}
+  .hint{font-size:11px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-top:-2px;}
+
+  .radios{display:flex;gap:8px;}
+  .radio-btn{
+    flex:1;text-align:center;padding:9px 0;border:1px solid var(--line);border-radius:6px;
+    font-size:13px;cursor:pointer;background:var(--panel);font-family:'IBM Plex Mono',monospace;
+  }
+  .radio-btn.active{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+
+  #runBtn{
+    margin-top:2px;padding:12px 0;border:none;border-radius:6px;background:var(--ink);color:var(--bg);
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14.5px;cursor:pointer;
+    transition:transform .08s ease, background .12s ease;
+  }
+  #runBtn:hover{background:#2A3241;}
+  #runBtn:active{transform:scale(0.98);}
+  #runBtn:disabled{opacity:.5;cursor:progress;}
+
+  .metrics{border-top:1px solid var(--line);padding-top:18px;display:flex;flex-direction:column;gap:10px;}
+  .metrics h2{font-size:12px;text-transform:lowercase;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);margin:0 0 2px;font-weight:600;}
+  .metric-row{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;}
+  .metric-row .k{color:var(--ink-soft);}
+  .metric-row .v{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  .metric-row.ensemble .v{color:var(--good);font-size:16px;}
+  .bar-track{height:4px;border-radius:2px;background:var(--line);overflow:hidden;margin-top:-4px;}
+  .bar-fill{height:100%;background:var(--good);}
+  .empty-metrics{font-size:12.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;line-height:1.5;}
+
+  /* ---------- Main ---------- */
+  #main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:20px;min-width:0;}
+  .plot-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px 14px;}
+  .plot-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .plot-head h3{margin:0;font-size:14.5px;font-weight:600;}
+  .plot-head .sub{font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  canvas{display:block;width:100%;height:auto;}
+
+  #ensembleCard canvas{aspect-ratio:16/9;}
+  #estimatorGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;}
+  .est-card canvas{aspect-ratio:1/1;}
+
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-top:8px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  @media (max-width:820px){
+    body{flex-direction:column;}
+    #sidebar{width:100%;flex:none;border-right:none;border-bottom:1px solid var(--line);}
+  }
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="brand">
+    <h1>Voting Classifier</h1>
+    <p>ensemble decision-boundary lab</p>
+  </div>
+
+  <div class="field">
+    <label>dataset</label>
+    <select id="datasetSelect">
+      <option value="ushaped">U-Shaped</option>
+      <option value="linear">Linearly Separable</option>
+      <option value="outlier">Outlier</option>
+      <option value="spirals">Two Spirals</option>
+      <option value="circles" selected>Concentric Circles</option>
+      <option value="xor">XOR</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>estimators — pick 2 or 3</label>
+    <div class="chips" id="estimatorChips"></div>
+    <div class="hint" id="estimatorHint"></div>
+  </div>
+
+  <div class="field">
+    <label>voting type</label>
+    <div class="radios" id="votingRadios">
+      <div class="radio-btn active" data-v="hard">hard</div>
+      <div class="radio-btn" data-v="soft">soft</div>
+    </div>
+  </div>
+
+  <button id="runBtn">Run Algorithm</button>
+
+  <div class="metrics" id="metricsPanel">
+    <h2>classification metrics</h2>
+    <div class="empty-metrics">Run the algorithm to see accuracy on a held-out 20% test split.</div>
+  </div>
+</aside>
+
+<main id="main">
+  <div class="plot-card" id="ensembleCard">
+    <div class="plot-head">
+      <h3 id="ensembleTitle">Voting Classifier — decision boundary</h3>
+      <span class="sub" id="ensembleSub">Concentric Circles</span>
+    </div>
+    <canvas id="ensembleCanvas" width="1000" height="562"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--classA)"></i>class 0</span>
+      <span><i style="background:var(--classB)"></i>class 1</span>
+    </div>
+  </div>
+
+  <div id="estimatorGrid"></div>
+</main>
+
+<script>
+/* ============================================================
+   DATA
+   ============================================================ */
+function randn(){
+  let u=0,v=0;
+  while(u===0)u=Math.random();
+  while(v===0)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function generateDataset(name, n=360){
+  const X=[], y=[];
+  if(name==='circles'){
+    const nOuter=Math.floor(n*0.55), nInner=n-nOuter;
+    for(let i=0;i<nOuter;i++){
+      const t=Math.random()*2*Math.PI, r=3.1+randn()*0.55;
+      X.push([1+r*Math.cos(t), 1.4+r*Math.sin(t)*0.85]); y.push(0);
+    }
+    for(let i=0;i<nInner;i++){
+      const t=Math.random()*2*Math.PI, r=1.1+randn()*0.4;
+      X.push([1+r*Math.cos(t)+0.9, 1.4+r*Math.sin(t)*0.85+0.8]); y.push(1);
+    }
+  } else if(name==='ushaped'){
+    // two nested U curves (like moons, but both open the same way)
+    const half=Math.floor(n/2);
+    for(let i=0;i<half;i++){
+      const t=Math.PI*(0.08+0.84*Math.random());
+      X.push([2.4*Math.cos(t)+randn()*0.2, 2.4*Math.sin(t)+randn()*0.2]); y.push(0);
+    }
+    for(let i=0;i<n-half;i++){
+      const t=Math.PI*(0.08+0.84*Math.random());
+      X.push([1.55*Math.cos(t)+randn()*0.2, 1.55*Math.sin(t)+randn()*0.2-1.15]); y.push(1);
+    }
+  } else if(name==='linear'){
+    const half=Math.floor(n/2);
+    for(let i=0;i<half;i++){ X.push([-1.7+randn()*1.0, -1.3+randn()*1.0]); y.push(0); }
+    for(let i=0;i<n-half;i++){ X.push([2.0+randn()*1.0, 1.9+randn()*1.0]); y.push(1); }
+  } else if(name==='outlier'){
+    const half=Math.floor(n*0.44);
+    for(let i=0;i<half;i++){ X.push([-1.7+randn()*0.85, -1.3+randn()*0.85]); y.push(0); }
+    for(let i=0;i<half;i++){ X.push([2.0+randn()*0.85, 1.9+randn()*0.85]); y.push(1); }
+    const nOut = n - 2*half;
+    for(let i=0;i<nOut;i++){
+      // scattered far-flung outliers of random class
+      const x = -4 + Math.random()*9, yv = -4 + Math.random()*9;
+      X.push([x,yv]); y.push(Math.random()<0.5?0:1);
+    }
+  } else if(name==='spirals'){
+    const half=Math.floor(n/2);
+    const turns=1.9;
+    for(let i=0;i<half;i++){
+      const t=turns*Math.PI*(i/half);
+      const r=0.25+t*0.42;
+      X.push([r*Math.cos(t)+randn()*0.18, r*Math.sin(t)+randn()*0.18]); y.push(0);
+    }
+    for(let i=0;i<n-half;i++){
+      const t=turns*Math.PI*(i/(n-half));
+      const r=0.25+t*0.42;
+      X.push([-r*Math.cos(t)+randn()*0.18, -r*Math.sin(t)+randn()*0.18]); y.push(1);
+    }
+  } else if(name==='xor'){
+    const q=Math.floor(n/4);
+    const push=(cx,cy,label,count)=>{
+      for(let i=0;i<count;i++) { X.push([cx+randn()*0.75, cy+randn()*0.75]); y.push(label); }
+    };
+    push(-2,-2,0,q); push(2,2,0,q); push(-2,2,1,q); push(2,-2,1,n-3*q);
+  }
+  return {X,y};
+}
+
+function trainTestSplit(X,y,testFrac=0.2){
+  const idx=[...X.keys()];
+  for(let i=idx.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [idx[i],idx[j]]=[idx[j],idx[i]]; }
+  const nTest=Math.floor(X.length*testFrac);
+  const testIdx=idx.slice(0,nTest), trainIdx=idx.slice(nTest);
+  const pick=(ids)=>({X:ids.map(i=>X[i]), y:ids.map(i=>y[i])});
+  return { train:pick(trainIdx), test:pick(testIdx) };
+}
+
+/* ============================================================
+   MODELS  — each exposes .fit(X,y) and .proba1(point) -> P(class=1)
+   ============================================================ */
+
+function LogisticRegression(){
+  let w=[0,0], b=0, mean=[0,0], std=[1,1];
+  return {
+    name:'Logistic Regression',
+    fit(X,y){
+      mean=[0,0]; std=[1,1];
+      for(let d=0;d<2;d++){ mean[d]=X.reduce((s,p)=>s+p[d],0)/X.length; }
+      for(let d=0;d<2;d++){ std[d]=Math.sqrt(X.reduce((s,p)=>s+(p[d]-mean[d])**2,0)/X.length)||1; }
+      const Xs=X.map(p=>[(p[0]-mean[0])/std[0], (p[1]-mean[1])/std[1]]);
+      w=[0,0]; b=0;
+      const lr=0.4, epochs=300, n=Xs.length;
+      for(let e=0;e<epochs;e++){
+        let gw=[0,0], gb=0;
+        for(let i=0;i<n;i++){
+          const z=w[0]*Xs[i][0]+w[1]*Xs[i][1]+b;
+          const p=1/(1+Math.exp(-z));
+          const err=p-y[i];
+          gw[0]+=err*Xs[i][0]; gw[1]+=err*Xs[i][1]; gb+=err;
+        }
+        w[0]-=lr*gw[0]/n; w[1]-=lr*gw[1]/n; b-=lr*gb/n;
+      }
+    },
+    proba1(pt){
+      const xs=[(pt[0]-mean[0])/std[0], (pt[1]-mean[1])/std[1]];
+      const z=w[0]*xs[0]+w[1]*xs[1]+b;
+      return 1/(1+Math.exp(-z));
+    }
+  };
+}
+
+function GaussianNB(){
+  let stats={0:null,1:null}, priors={0:0.5,1:0.5};
+  return {
+    name:'Gaussian Naive Bayes',
+    fit(X,y){
+      for(const c of [0,1]){
+        const pts=X.filter((_,i)=>y[i]===c);
+        priors[c]=pts.length/X.length;
+        const mean=[0,0], varr=[0,0];
+        for(let d=0;d<2;d++) mean[d]=pts.reduce((s,p)=>s+p[d],0)/pts.length;
+        for(let d=0;d<2;d++) varr[d]=Math.max(1e-3, pts.reduce((s,p)=>s+(p[d]-mean[d])**2,0)/pts.length);
+        stats[c]={mean,varr};
+      }
+    },
+    proba1(pt){
+      const ll=(c)=>{
+        const {mean,varr}=stats[c];
+        let logp=Math.log(priors[c]);
+        for(let d=0;d<2;d++){
+          logp += -0.5*Math.log(2*Math.PI*varr[d]) - ((pt[d]-mean[d])**2)/(2*varr[d]);
+        }
+        return logp;
+      };
+      const l0=ll(0), l1=ll(1);
+      const m=Math.max(l0,l1);
+      const e0=Math.exp(l0-m), e1=Math.exp(l1-m);
+      return e1/(e0+e1);
+    }
+  };
+}
+
+function DecisionTreeStump(maxDepth=4, minLeaf=6){
+  let root=null;
+  function gini(y){
+    if(y.length===0) return 0;
+    const p1=y.reduce((s,v)=>s+v,0)/y.length;
+    return 1-p1*p1-(1-p1)*(1-p1);
+  }
+  function build(X,y,depth){
+    const p1=y.length? y.reduce((s,v)=>s+v,0)/y.length : 0.5;
+    if(depth>=maxDepth || y.length<minLeaf || p1===0 || p1===1){
+      return {leaf:true, p1};
+    }
+    let best=null;
+    for(let d=0;d<2;d++){
+      const vals=[...new Set(X.map(p=>p[d]))].sort((a,b)=>a-b);
+      for(let vi=1; vi<vals.length; vi++){
+        const thresh=(vals[vi-1]+vals[vi])/2;
+        const leftY=[], rightY=[];
+        for(let i=0;i<X.length;i++){ (X[i][d]<=thresh? leftY:rightY).push(y[i]); }
+        if(leftY.length<minLeaf || rightY.length<minLeaf) continue;
+        const g=(leftY.length*gini(leftY)+rightY.length*gini(rightY))/y.length;
+        if(!best || g<best.g) best={g, d, thresh};
+      }
+    }
+    if(!best) return {leaf:true, p1};
+    const leftX=[],leftY=[],rightX=[],rightY=[];
+    for(let i=0;i<X.length;i++){
+      if(X[i][best.d]<=best.thresh){ leftX.push(X[i]); leftY.push(y[i]); }
+      else { rightX.push(X[i]); rightY.push(y[i]); }
+    }
+    return {leaf:false, d:best.d, thresh:best.thresh,
+      left:build(leftX,leftY,depth+1), right:build(rightX,rightY,depth+1)};
+  }
+  function predict(node,pt){
+    if(node.leaf) return node.p1;
+    return pt[node.d]<=node.thresh ? predict(node.left,pt) : predict(node.right,pt);
+  }
+  return {
+    name:'Decision Tree',
+    fit(X,y){ root=build(X,y,0); },
+    proba1(pt){ return predict(root,pt); }
+  };
+}
+
+function KNN(k=7){
+  let Xtr=[], ytr=[];
+  return {
+    name:'k-Nearest Neighbors',
+    fit(X,y){ Xtr=X; ytr=y; },
+    proba1(pt){
+      const d=Xtr.map((p,i)=>({dist:(p[0]-pt[0])**2+(p[1]-pt[1])**2, y:ytr[i]}));
+      d.sort((a,b)=>a.dist-b.dist);
+      const kk=Math.min(k,d.length);
+      let sum=0; for(let i=0;i<kk;i++) sum+=d[i].y;
+      return sum/kk;
+    }
+  };
+}
+
+function LinearRegressionClf(){
+  let w=[0,0], b=0, mean=[0,0], std=[1,1];
+  return {
+    name:'Linear Regression',
+    fit(X,y){
+      for(let d=0;d<2;d++){ mean[d]=X.reduce((s,p)=>s+p[d],0)/X.length; }
+      for(let d=0;d<2;d++){ std[d]=Math.sqrt(X.reduce((s,p)=>s+(p[d]-mean[d])**2,0)/X.length)||1; }
+      const Xs=X.map(p=>[(p[0]-mean[0])/std[0], (p[1]-mean[1])/std[1]]);
+      w=[0,0]; b=0;
+      const lr=0.3, epochs=300, n=Xs.length;
+      for(let e=0;e<epochs;e++){
+        let gw=[0,0], gb=0;
+        for(let i=0;i<n;i++){
+          const pred=w[0]*Xs[i][0]+w[1]*Xs[i][1]+b;
+          const err=pred-y[i];
+          gw[0]+=err*Xs[i][0]; gw[1]+=err*Xs[i][1]; gb+=err;
+        }
+        w[0]-=lr*gw[0]/n; w[1]-=lr*gw[1]/n; b-=lr*gb/n;
+      }
+    },
+    proba1(pt){
+      const xs=[(pt[0]-mean[0])/std[0], (pt[1]-mean[1])/std[1]];
+      const pred=w[0]*xs[0]+w[1]*xs[1]+b;
+      return Math.min(1, Math.max(0, pred)); // clip raw regression output to [0,1]
+    }
+  };
+}
+
+function LinearSVM(){
+  let w=[0,0], b=0, mean=[0,0], std=[1,1];
+  return {
+    name:'SVM (linear)',
+    fit(X,y){
+      for(let d=0;d<2;d++){ mean[d]=X.reduce((s,p)=>s+p[d],0)/X.length; }
+      for(let d=0;d<2;d++){ std[d]=Math.sqrt(X.reduce((s,p)=>s+(p[d]-mean[d])**2,0)/X.length)||1; }
+      const Xs=X.map(p=>[(p[0]-mean[0])/std[0], (p[1]-mean[1])/std[1]]);
+      const ys=y.map(v=>v===1?1:-1); // hinge loss labels
+      w=[0,0]; b=0;
+      const lr=0.05, C=1, epochs=400, n=Xs.length;
+      for(let e=0;e<epochs;e++){
+        let gw=[0,0], gb=0;
+        for(let i=0;i<n;i++){
+          const margin = ys[i]*(w[0]*Xs[i][0]+w[1]*Xs[i][1]+b);
+          if(margin<1){
+            gw[0]+= w[0] - C*ys[i]*Xs[i][0];
+            gw[1]+= w[1] - C*ys[i]*Xs[i][1];
+            gb += -C*ys[i];
+          } else {
+            gw[0]+= w[0]; gw[1]+= w[1];
+          }
+        }
+        w[0]-=lr*gw[0]/n; w[1]-=lr*gw[1]/n; b-=lr*gb/n;
+      }
+    },
+    proba1(pt){
+      const xs=[(pt[0]-mean[0])/std[0], (pt[1]-mean[1])/std[1]];
+      const dist=w[0]*xs[0]+w[1]*xs[1]+b;
+      return 1/(1+Math.exp(-2.5*dist)); // squash decision distance into pseudo-probability
+    }
+  };
+}
+
+function RandomForest(nTrees=15, maxDepth=3, minLeaf=6){
+  let trees=[];
+  return {
+    name:'Random Forest',
+    fit(X,y){
+      trees=[];
+      const n=X.length;
+      for(let t=0;t<nTrees;t++){
+        const bx=[], by=[];
+        for(let i=0;i<n;i++){
+          const idx=Math.floor(Math.random()*n);
+          bx.push(X[idx]); by.push(y[idx]);
+        }
+        const tree=DecisionTreeStump(maxDepth, minLeaf);
+        tree.fit(bx,by);
+        trees.push(tree);
+      }
+    },
+    proba1(pt){
+      let sum=0;
+      for(const tree of trees) sum+=tree.proba1(pt);
+      return sum/trees.length;
+    }
+  };
+}
+
+const MODEL_FACTORY = {
+  lr: ()=>LogisticRegression(),
+  nb: ()=>GaussianNB(),
+  dt: ()=>DecisionTreeStump(),
+  knn: ()=>KNN(7),
+  linreg: ()=>LinearRegressionClf(),
+  svm: ()=>LinearSVM(),
+  rf: ()=>RandomForest()
+};
+const MODEL_META = {
+  lr:{label:'Logistic Regression', tag:'linear'},
+  nb:{label:'Gaussian Naive Bayes', tag:'probabilistic'},
+  dt:{label:'Decision Tree', tag:'rule-based'},
+  knn:{label:'k-Nearest Neighbors', tag:'instance-based'},
+  linreg:{label:'Linear Regression', tag:'linear'},
+  svm:{label:'SVM (linear)', tag:'margin-based'},
+  rf:{label:'Random Forest', tag:'ensemble'}
+};
+
+/* ============================================================
+   VOTING
+   ============================================================ */
+function votingProba1(models, pt, type){
+  const probs = models.map(m=>m.proba1(pt));
+  if(type==='soft'){
+    return probs.reduce((s,p)=>s+p,0)/probs.length;
+  } else {
+    // hard voting: majority of predicted labels; ties broken by mean probability
+    const votes = probs.map(p=>p>=0.5?1:0);
+    const sum = votes.reduce((s,v)=>s+v,0);
+    if(sum*2===votes.length){
+      return probs.reduce((s,p)=>s+p,0)/probs.length; // tie-break
+    }
+    return sum > votes.length/2 ? 1 : 0;
+  }
+}
+function accuracy(predictFn, X, y, threshold=0.5){
+  let correct=0;
+  for(let i=0;i<X.length;i++){
+    const p=predictFn(X[i]);
+    const label = p>=threshold?1:0;
+    if(label===y[i]) correct++;
+  }
+  return correct/X.length;
+}
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+function getBounds(X){
+  let xs=X.map(p=>p[0]), ys=X.map(p=>p[1]);
+  let xMin=Math.min(...xs), xMax=Math.max(...xs), yMin=Math.min(...ys), yMax=Math.max(...ys);
+  const padX=(xMax-xMin)*0.18||1, padY=(yMax-yMin)*0.18||1;
+  return {xMin:xMin-padX, xMax:xMax+padX, yMin:yMin-padY, yMax:yMax+padY};
+}
+
+function drawPlot(canvas, X, y, predictFn, bounds, resolution=70){
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const {xMin,xMax,yMin,yMax}=bounds;
+
+  const toPx = (x)=> (x-xMin)/(xMax-xMin)*W;
+  const toPy = (yv)=> H - (yv-yMin)/(yMax-yMin)*H;
+
+  // background boundary fill
+  const cw = W/resolution;
+  const rowsRes = Math.round(resolution*H/W);
+  const ch = H/rowsRes;
+  for(let i=0;i<resolution;i++){
+    const x = xMin + (i+0.5)/resolution*(xMax-xMin);
+    for(let j=0;j<rowsRes;j++){
+      const yv = yMax - (j+0.5)/rowsRes*(yMax-yMin);
+      const p = predictFn([x,yv]);
+      // blend between classA and classB fill colors by probability
+      ctx.fillStyle = blendColor(p);
+      ctx.fillRect(i*cw-0.5, j*ch-0.5, cw+1, ch+1);
+    }
+  }
+
+  // gridlines
+  ctx.strokeStyle='rgba(23,28,38,0.08)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  for(let gx=Math.ceil(xMin); gx<=xMax; gx++){ const px=toPx(gx); ctx.moveTo(px,0); ctx.lineTo(px,H); }
+  for(let gy=Math.ceil(yMin); gy<=yMax; gy++){ const py=toPy(gy); ctx.moveTo(0,py); ctx.lineTo(W,py); }
+  ctx.stroke();
+
+  // scatter points
+  for(let i=0;i<X.length;i++){
+    const px=toPx(X[i][0]), py=toPy(X[i][1]);
+    ctx.beginPath();
+    ctx.fillStyle = y[i]===1 ? '#B84A18' : '#1E4380';
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth=1;
+    ctx.arc(px,py,3.6,0,2*Math.PI);
+    ctx.fill(); ctx.stroke();
+  }
+}
+
+function blendColor(p){
+  // p = P(class 1). classA (blue, fill light) for p near 0, classB (amber) for p near 1
+  const a = [0x9C,0xB6,0xE0]; // classA-fill
+  const b = [0xEF,0xB7,0x8C]; // classB-fill
+  const r = Math.round(a[0]+(b[0]-a[0])*p);
+  const g = Math.round(a[1]+(b[1]-a[1])*p);
+  const bl = Math.round(a[2]+(b[2]-a[2])*p);
+  return `rgb(${r},${g},${bl})`;
+}
+
+/* ============================================================
+   APP STATE / UI WIRING
+   ============================================================ */
+const AVAILABLE = ['lr','knn','nb','svm','rf'];
+let selected = ['lr','nb'];
+let votingType = 'hard';
+
+function renderChips(){
+  const wrap=document.getElementById('estimatorChips');
+  wrap.innerHTML='';
+  AVAILABLE.forEach(key=>{
+    const meta=MODEL_META[key];
+    const chip=document.createElement('div');
+    chip.className='chip'+(selected.includes(key)?' selected':'');
+    chip.tabIndex=0;
+    chip.innerHTML=`<span style="display:flex;align-items:center;"><span class="dot"></span><span class="name">${meta.label}</span></span><span class="tag">${meta.tag}</span>`;
+    chip.addEventListener('click', ()=>{
+      if(selected.includes(key)){
+        if(selected.length<=2){ flashHint('Pick at least 2 estimators.'); return; }
+        selected = selected.filter(k=>k!==key);
+      } else {
+        if(selected.length>=3){ flashHint('Pick at most 3 estimators.'); return; }
+        selected = [...selected, key];
+      }
+      renderChips();
+    });
+    wrap.appendChild(chip);
+  });
+}
+function flashHint(msg){
+  const h=document.getElementById('estimatorHint');
+  h.textContent=msg;
+  h.style.color='#B84A18';
+  setTimeout(()=>{ h.textContent=''; h.style.color=''; }, 1600);
+}
+
+document.getElementById('votingRadios').addEventListener('click',(e)=>{
+  const btn=e.target.closest('.radio-btn');
+  if(!btn) return;
+  votingType=btn.dataset.v;
+  document.querySelectorAll('.radio-btn').forEach(b=>b.classList.toggle('active', b===btn));
+});
+
+document.getElementById('datasetSelect').addEventListener('change', ()=>{
+  document.getElementById('ensembleSub').textContent =
+    document.getElementById('datasetSelect').selectedOptions[0].text;
+});
+
+function run(){
+  if(selected.length<2){ flashHint('Pick at least 2 estimators.'); return; }
+  const runBtn=document.getElementById('runBtn');
+  runBtn.disabled=true; runBtn.textContent='Running…';
+
+  setTimeout(()=>{
+    const datasetName = document.getElementById('datasetSelect').value;
+    const {X,y} = generateDataset(datasetName, 380);
+    const {train, test} = trainTestSplit(X,y,0.22);
+    const bounds = getBounds(X);
+
+    const models = selected.map(key=>{
+      const m = MODEL_FACTORY[key]();
+      m.fit(train.X, train.y);
+      return {key, model:m};
+    });
+
+    const ensemblePredict = (pt)=> votingProba1(models.map(m=>m.model), pt, votingType);
+    const ensembleAcc = accuracy(ensemblePredict, test.X, test.y);
+
+    // draw ensemble
+    drawPlot(document.getElementById('ensembleCanvas'), X, y, ensemblePredict, bounds, 90);
+    document.getElementById('ensembleTitle').textContent =
+      `Voting Classifier (${votingType}) — decision boundary`;
+
+    // draw each estimator + collect accuracy
+    const grid=document.getElementById('estimatorGrid');
+    grid.innerHTML='';
+    const accRows=[];
+    models.forEach(({key,model})=>{
+      const acc = accuracy((pt)=>model.proba1(pt), test.X, test.y);
+      accRows.push({label:MODEL_META[key].label, acc});
+
+      const card=document.createElement('div');
+      card.className='plot-card est-card';
+      card.innerHTML = `
+        <div class="plot-head">
+          <h3>${MODEL_META[key].label}</h3>
+          <span class="sub mono">${(acc*100).toFixed(1)}%</span>
+        </div>
+        <canvas width="500" height="500"></canvas>`;
+      grid.appendChild(card);
+      drawPlot(card.querySelector('canvas'), X, y, (pt)=>model.proba1(pt), bounds, 55);
+    });
+
+    // metrics panel
+    const panel=document.getElementById('metricsPanel');
+    panel.innerHTML = `
+      <h2>classification metrics</h2>
+      <div class="metric-row ensemble">
+        <span class="k">Voting Classifier</span>
+        <span class="v">${(ensembleAcc*100).toFixed(1)}%</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(ensembleAcc*100).toFixed(1)}%"></div></div>
+      ${accRows.map(r=>`
+        <div class="metric-row">
+          <span class="k">${r.label}</span>
+          <span class="v">${(r.acc*100).toFixed(1)}%</span>
+        </div>`).join('')}
+      <div class="hint" style="margin-top:4px;">test split: 22% held out, n=${test.X.length}</div>
+    `;
+
+    runBtn.disabled=false; runBtn.textContent='Run Algorithm';
+  }, 30);
+}
+
+document.getElementById('runBtn').addEventListener('click', run);
+
+renderChips();
+run();
+</script>
+</body>
+</html>
